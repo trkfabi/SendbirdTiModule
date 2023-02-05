@@ -1,0 +1,19 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 1.0.0
+apiversion: 2
+architectures: arm64 x86_64
+mac: false
+description: Sendbird
+author: Fabian Martinez
+license: Specify your license
+copyright: Copyright (c) 2023 by Your Company
+
+# these should not be edited
+name: Sendbird
+moduleid: com.inzori.sendbird
+guid: a29379f1-91d1-462e-a99a-ab8256581065
+platform: iphone
+minsdk: 11.0.0.GA
