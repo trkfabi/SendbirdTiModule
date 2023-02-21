@@ -47,6 +47,15 @@ class ComInzoriSendbirdModule: TiModule {
     var userId = ""
     var userName = ""
     var naviVC = UINavigationController()
+    let topPresentedController = TiApp.controller().topPresentedController()
+    
+    @objc(onClickBack)
+    func onClickBack() {
+        topPresentedController!.dismiss(animated: true) {
+            self.fireEvent("app:sendbird_chat_dismissed", with: ["key": "value"])
+        }
+        //naviVC.popViewController(animated: true)
+    }
     
     @objc(initSendbird:)
     func initSendbird(arguments: Array<Any>?) {
@@ -76,7 +85,7 @@ class ComInzoriSendbirdModule: TiModule {
         
         SBUGlobals.isChannelListMessageReceiptStateEnabled = true
         SBUGlobals.isChannelListTypingIndicatorEnabled = true
-        SBUFontSet.body1 = .systemFont(ofSize: 20, weight: .regular)
+        //SBUFontSet.body1 = .systemFont(ofSize: 20, weight: .regular)
         
         sdkInitialized = true
         callback.call([["success": true, "message": "Sdk initialized"]], thisObject: self)
@@ -111,13 +120,15 @@ class ComInzoriSendbirdModule: TiModule {
     @objc(connectUser:)
     func connectUser(arguments: Array<Any>?) {
         print("[DEBUG] connectUser method")
+        self.fireEvent("app:sendbird_chat_log", with: ["message": "connectUser()"])
+        
         guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
         guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
         userId = options["userId"] as? String ?? ""
         userName = options["userName"] as? String ?? ""
         let authToken = options["authToken"] as? String ?? ""
-        let deviceToken = options["deviceToken"] as? String ?? nil
-        SendbirdChat.connect(userId: userId, authToken: authToken) { [self] user, error in
+        let deviceToken = options["deviceToken"] as? String ?? ""
+        SendbirdChat.connect(userId: userId, authToken: authToken) { [self]user, error in
             guard error == nil else {
                 // Handle error.
                 callback.call([["success": false, "error": authToken + " \(String(describing: error))"]], thisObject: self)
@@ -126,8 +137,14 @@ class ComInzoriSendbirdModule: TiModule {
             userConnected = true
             SBUGlobals.currentUser = SBUUser(userId: userId, nickname: userName)
 
-            let deviceTokenData = hexDecodedData(textToEncode:deviceToken!)
-            if(deviceToken != nil) {
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "connectUser - check deviceToken \(String(describing: deviceToken))"])
+            
+            if(deviceToken.count > 0) {
+                self.fireEvent("app:sendbird_chat_log", with: ["message": "connectUser - will decode token"])
+               
+                let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
+                
+                self.fireEvent("app:sendbird_chat_log", with: ["message": "connectUser - will registerDevicePushToken"])
                 SendbirdChat.registerDevicePushToken(deviceTokenData, unique: false) { status, error in
                     if error == nil {
                         // A device token is successfully registered.
@@ -149,13 +166,14 @@ class ComInzoriSendbirdModule: TiModule {
                 }
             } else {
                 
-                callback.call([["success": true, "message": "User is connected to Sendbird server (deviceToken was not used \(String(describing: deviceToken))"]], thisObject: self)
+                callback.call([["success": true, "message": "User is connected to Sendbird server"]], thisObject: self)
             }
         }
     }
     
     @objc(launchChat:)
     func launchChat(arguments: Array<Any>?) {
+        self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat()"])
         print("[DEBUG] launchChat method")
         guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
         guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
@@ -172,49 +190,72 @@ class ComInzoriSendbirdModule: TiModule {
         let receiverUserId = options["receiverUserId"] as? String ?? ""
         let receiverUserName = options["receiverUserName"] as? String ?? ""
         let groupName = options["groupName"] as? String ?? ""
+        let groupAvatarFile = options["groupAvatarFile"] as? String ?? ""
         let groupAvatarUrl = options["groupAvatarUrl"] as? String ?? ""
-        let groupChannelUrl = options["groupChannelUrl"] as? String ?? nil
+        let groupChannelUrl = options["groupChannelUrl"] as? String ?? ""
         let groupCustomType = options["groupCustomType"] as? String ?? ""
+        
+        self.fireEvent("app:sendbird_chat_log", with: ["receiverId": receiverUserId])
         
         if naviVC.viewIfLoaded?.window != nil {
             // viewController is visible
             print("[WARN] naviVC is visible")
-            if (groupChannelUrl != nil) {
-                
-                SendbirdUI.moveToChannel(channelURL: groupChannelUrl!, basedOnChannelList: true)
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window is open"])
+            if (groupChannelUrl.count > 0) {
+                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - channel url exists"])
+                SendbirdUI.moveToChannel(channelURL: groupChannelUrl, basedOnChannelList: true)
                 callback.call([["success": true, "message": "Chat opened on already visible controller"]], thisObject: self)
                 return
             }
         } else {
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window not opened"])
             print("[WARN] naviVC is NOT visible")
             //callback.call([["success": false, "error": "naviVC is NOT visible"]], thisObject: self)
         }
-        
-        guard let controller = TiApp.controller(), let topPresentedController = controller.topPresentedController() else {
-          print("[WARN] No window opened. Ignoring gallery call …")
-          return
+
+        if (groupChannelUrl.count > 0) {
+            // we already have a channel
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - have a channel URL"])
+            GroupChannel.getChannel(url: groupChannelUrl) { channel, error in
+                guard error == nil else {
+                    // Handle error.
+                    callback.call([["success": false, "error with URL": "\(String(describing: error))"]], thisObject: self)
+                    
+                    return
+                }
+                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will openChat"])
+                openChat(channel: channel!)
+                
+            }
+        } else {
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - no channel URL"])
+            let userIds = [userId, receiverUserId]
+            let params = GroupChannelCreateParams()
+            params.isDistinct = true
+            if (groupAvatarFile.count > 0) {
+                params.coverImage = loadImage(filepath: groupAvatarFile)
+            } else {
+                params.coverURL = groupAvatarUrl
+            }
+            params.name = groupName
+            params.userIds = userIds
+            //params.channelURL = groupChannelUrl
+            params.customType = groupCustomType
+            
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will create channel"])
+            GroupChannel.createChannel(params: params) { channel, error in
+                if error != nil {
+                    // can't create channel
+                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
+                    return
+                }
+                
+                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will open chat"])
+                openChat(channel: channel!)
+                
+            }
         }
         
-        let userIds = [userId, receiverUserId]
-        let params = GroupChannelCreateParams()
-        params.isDistinct = true
-        params.coverURL = groupAvatarUrl
-        params.name = groupName
-        params.userIds = userIds
-        //params.channelURL = groupChannelUrl
-        params.customType = groupCustomType
-        
-        GroupChannel.createChannel(params: params, completionHandler: { (channel, error) in
-            if error != nil {
-                // can't create channel
-                callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
-                return
-            }
-            
-            openChat(channel: channel!)
-
-        })
-       
         func openChat(channel: GroupChannel) {
             
             // use the created channel for one-to-one chat
@@ -229,27 +270,50 @@ class ComInzoriSendbirdModule: TiModule {
             let rightBarButton = UIBarButtonItem(customView: rightButton)
             channelVC.headerComponent?.rightBarButton = rightBarButton
             
-//            let backButton = UIButton(type: .custom)
-//            backButton.frame = .init(x: 0, y: 0, width: 50, height: 45)
-//            backButton.setTitle("Back", for: .normal)
-//            backButton.setTitleColor(UIColor(
-//                red: CGFloat(0x02) / 255.0,
-//                green: CGFloat(0xB3) / 255.0,
-//                blue: CGFloat(0xE4) / 255.0,
-//                alpha: CGFloat(1)
-//            ), for: .normal)
-//            let backBarButton = UIBarButtonItem(customView: backButton)
-//            channelVC.headerComponent?.leftBarButton = backBarButton
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will change button"])
+            let backButton: UIButton
+            if #available(iOS 13.0, *) {
+                backButton = UIButton(type: .close)
+            } else {
+                // Fallback on earlier versions
+                backButton = UIButton(type: .custom)
+                backButton.frame = .init(x: 0, y: 0, width: 50, height: 60)
+                backButton.setTitle("<", for: .normal)
+            }
+
+            backButton.tintColor = UIColor(
+                red: CGFloat(0x02) / 255.0,
+                green: CGFloat(0xB3) / 255.0,
+                blue: CGFloat(0xE4) / 255.0,
+                alpha: CGFloat(1)
+            )
+            backButton.addTarget(self, action: #selector(onClickBack), for: .touchUpInside)
+            let backBarButton = UIBarButtonItem(customView: backButton)
+            channelVC.headerComponent?.leftBarButton = backBarButton
+            
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - button changed"])
             
             naviVC = UINavigationController(rootViewController: channelVC)
             naviVC.modalPresentationStyle = UIModalPresentationStyle.fullScreen
-            topPresentedController.present(naviVC, animated: true, completion: nil)
+            
+            topPresentedController!.present(naviVC, animated: true) {
+                // This code gets executed after the modal window is dismissed
+                self.fireEvent("app:sendbird_chat_opened", with: ["key": "value"])
+            }
             
             callback.call([["success": true, "message": "Chat opened"]], thisObject: self)
         }
         
+
         return
     }
 
-
+    func loadImage(filepath: String) -> Data {
+        var data: Data? = nil
+        let fileLocation = Bundle.main.url(forResource: filepath, withExtension: "png")
+        data = try? Data(contentsOf: fileLocation!)
+        return data!
+        //let uiImage: UIImage = UIImage(data: data!)!
+        //return uiImage
+    }
 }
