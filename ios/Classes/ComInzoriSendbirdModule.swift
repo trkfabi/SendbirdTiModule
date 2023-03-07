@@ -249,9 +249,9 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
         guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
         guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
         userId = options["userId"] as? String ?? ""
-        userName = options["userName"] as? String ?? ""
+        //userName = options["userName"] as? String ?? ""
         let authToken = options["authToken"] as? String ?? ""
-        let deviceToken = options["deviceToken"] as? String ?? ""
+        //let deviceToken = options["deviceToken"] as? String ?? ""
         SendbirdChat.connect(userId: userId, authToken: authToken) { [self]user, error in
             guard error == nil else {
                 // Handle error.
@@ -259,8 +259,12 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
                 return
             }
             userConnected = true
-            SBUGlobals.currentUser = SBUUser(userId: userId, nickname: userName)
+            SBUGlobals.currentUser = SBUUser(userId: userId)
 
+            callback.call([["success": true, "message": "User is connected to Sendbird server"]], thisObject: self)
+            
+            // this will be done by platform api
+            /*
             self.fireEvent("app:sendbird_chat_log", with: ["message": "connectUser - check deviceToken \(String(describing: deviceToken))"])
             
             if(deviceToken.count > 0) {
@@ -292,6 +296,7 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
                 
                 callback.call([["success": true, "message": "User is connected to Sendbird server"]], thisObject: self)
             }
+             */
         }
     }
     
@@ -304,75 +309,75 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
 
     }
     
-    
-    @objc(registerDevicePushToken:)
-    func registerDevicePushToken(arguments: Array<Any>?) {
-        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
-        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
-        let deviceToken = options["deviceToken"] as? String ?? ""
-        if(deviceToken.count > 0) {
-            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
-            SendbirdChat.registerDevicePushToken(deviceTokenData, unique: false) { status, error in
-                if error == nil {
-                    // A device token is successfully registered.
-                    callback.call([["success": true, "message": "User is connected to Sendbird server and device token registered \(String(describing: deviceToken)) and data \(String(describing: deviceTokenData))", "tokenStatus": "registered"]], thisObject: self)
-                }
-                else {
-                    if status == PushTokenRegistrationStatus.pending {
-                        // A token registration is pending.
-                        // If this status is returned,
-                        // invoke the registerDevicePushToken:unique:completionHandler:
-                        // with [SendbirdChat getPendingPushToken] after connection.
-                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token is PENDING \(String(describing: deviceToken))", "tokenStatus": "pending"]], thisObject: self)
-                    }
-                    else {
-                        // Handle registration failure.
-                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token registration has error \(String(describing: error))", "tokenStatus": "error"]], thisObject: self)
-                    }
-                }
-            }
-        } else {
-            callback.call([["success": false, "error": "No device token received", "tokenStatus": "error"]], thisObject: self)
-        }
-    }
-    
-    
-    @objc(unregisterPushToken:)
-    func unregisterPushToken(arguments: Array<Any>?) {
-        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
-        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
-        let deviceToken = options["deviceToken"] as? String ?? ""
-        if(deviceToken.count > 0) {
-            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
-            SendbirdChat.unregisterPushToken(deviceTokenData) { response, error in
-                guard error == nil else {
-                    // Handle error.
-                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
-                    return
-                }
-                callback.call([["success": true, "message": "User device token was unregistered"]], thisObject: self)
-            }
-        } else {
-            callback.call([["success": false, "error": "No device token received"]], thisObject: self)
-        }
-    }
-    
-    @objc(unregisterAllPushToken:)
-    func unregisterAllPushToken(arguments: Array<Any>?) {
-        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
-        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
-        SendbirdChat.unregisterAllPushToken { (response, error) in
-            guard error == nil else {
-                // Handle error.
-                callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
-                return
-                
-            }
-            callback.call([["success": true, "message": "All user devices tokens were unregistered"]], thisObject: self)
-        }
-        
-    }
-    
+//
+//    @objc(registerDevicePushToken:)
+//    func registerDevicePushToken(arguments: Array<Any>?) {
+//        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
+//        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
+//        let deviceToken = options["deviceToken"] as? String ?? ""
+//        if(deviceToken.count > 0) {
+//            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
+//            SendbirdChat.registerDevicePushToken(deviceTokenData, unique: false) { status, error in
+//                if error == nil {
+//                    // A device token is successfully registered.
+//                    callback.call([["success": true, "message": "User is connected to Sendbird server and device token registered \(String(describing: deviceToken)) and data \(String(describing: deviceTokenData))", "tokenStatus": "registered"]], thisObject: self)
+//                }
+//                else {
+//                    if status == PushTokenRegistrationStatus.pending {
+//                        // A token registration is pending.
+//                        // If this status is returned,
+//                        // invoke the registerDevicePushToken:unique:completionHandler:
+//                        // with [SendbirdChat getPendingPushToken] after connection.
+//                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token is PENDING \(String(describing: deviceToken))", "tokenStatus": "pending"]], thisObject: self)
+//                    }
+//                    else {
+//                        // Handle registration failure.
+//                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token registration has error \(String(describing: error))", "tokenStatus": "error"]], thisObject: self)
+//                    }
+//                }
+//            }
+//        } else {
+//            callback.call([["success": false, "error": "No device token received", "tokenStatus": "error"]], thisObject: self)
+//        }
+//    }
+//
+//
+//    @objc(unregisterPushToken:)
+//    func unregisterPushToken(arguments: Array<Any>?) {
+//        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
+//        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
+//        let deviceToken = options["deviceToken"] as? String ?? ""
+//        if(deviceToken.count > 0) {
+//            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
+//            SendbirdChat.unregisterPushToken(deviceTokenData) { response, error in
+//                guard error == nil else {
+//                    // Handle error.
+//                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
+//                    return
+//                }
+//                callback.call([["success": true, "message": "User device token was unregistered"]], thisObject: self)
+//            }
+//        } else {
+//            callback.call([["success": false, "error": "No device token received"]], thisObject: self)
+//        }
+//    }
+//
+//    @objc(unregisterAllPushToken:)
+//    func unregisterAllPushToken(arguments: Array<Any>?) {
+//        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
+//        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
+//        SendbirdChat.unregisterAllPushToken { (response, error) in
+//            guard error == nil else {
+//                // Handle error.
+//                callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
+//                return
+//
+//            }
+//            callback.call([["success": true, "message": "All user devices tokens were unregistered"]], thisObject: self)
+//        }
+//
+//    }
+//
     
     
     @objc(launchChat:)
@@ -391,15 +396,15 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
             return
         }
             
-        let receiverUserId = options["receiverUserId"] as? String ?? ""
-        let receiverUserName = options["receiverUserName"] as? String ?? ""
-        let groupName = options["groupName"] as? String ?? ""
-        let groupAvatarFile = options["groupAvatarFile"] as? String ?? ""
-        let groupAvatarUrl = options["groupAvatarUrl"] as? String ?? ""
+        //let receiverUserId = options["receiverUserId"] as? String ?? ""
+        //let receiverUserName = options["receiverUserName"] as? String ?? ""
+        //let groupName = options["groupName"] as? String ?? ""
+        //let groupAvatarFile = options["groupAvatarFile"] as? String ?? ""
+        //let groupAvatarUrl = options["groupAvatarUrl"] as? String ?? ""
         let groupChannelUrl = options["groupChannelUrl"] as? String ?? ""
-        let groupCustomType = options["groupCustomType"] as? String ?? ""
+        //let groupCustomType = options["groupCustomType"] as? String ?? ""
         
-        self.fireEvent("app:sendbird_chat_log", with: ["receiverId": receiverUserId, "groupAvatarFile": groupAvatarFile])
+        //self.fireEvent("app:sendbird_chat_log", with: ["receiverId": receiverUserId, "groupAvatarFile": groupAvatarFile])
         
         if naviVC.viewIfLoaded?.window != nil {
             // viewController is visible
@@ -411,10 +416,6 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
                 callback.call([["success": true, "message": "Chat opened on already visible controller", "channelURL": groupChannelUrl]], thisObject: self)
                 return
             }
-        } else {
-            //self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window not opened"])
-            print("[WARN] naviVC is NOT visible")
-            //callback.call([["success": false, "error": "naviVC is NOT visible"]], thisObject: self)
         }
 
         if (groupChannelUrl.count > 0) {
@@ -432,28 +433,29 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
                 openChat(channel: channel!)
                 
             }
-        } else {
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - no channel URL"])
-            let userIds = [userId, receiverUserId]
-            let params = GroupChannelCreateParams()
-            params.isDistinct = true
-            params.name = groupName
-            params.userIds = userIds
-            params.customType = groupCustomType
-            
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will create channel"])
-            GroupChannel.createChannel(params: params) { channel, error in
-                if error != nil {
-                    // can't create channel
-                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
-                    return
-                }
-                
-                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will open chat"])
-                openChat(channel: channel!)
-                
-            }
         }
+//        else {
+//            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - no channel URL"])
+//            let userIds = [userId, receiverUserId]
+//            let params = GroupChannelCreateParams()
+//            params.isDistinct = true
+//            params.name = groupName
+//            params.userIds = userIds
+//            params.customType = groupCustomType
+//
+//            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will create channel"])
+//            GroupChannel.createChannel(params: params) { channel, error in
+//                if error != nil {
+//                    // can't create channel
+//                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
+//                    return
+//                }
+//
+//                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will open chat"])
+//                openChat(channel: channel!)
+//
+//            }
+//        }
 
         func openChat(channel: GroupChannel) {
 
@@ -506,42 +508,42 @@ class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
 
         return
     }
-    
-    func hexDecodedData(textToEncode: String) -> Data {
-        // Get the UTF8 characters of this string
-        let chars = Array(textToEncode.utf8)
-
-        // Keep the bytes in an UInt8 array and later convert it to Data
-        var bytes = [UInt8]()
-        bytes.reserveCapacity(textToEncode.count / 2)
-
-        // It is a lot faster to use a lookup map instead of strtoul
-        let map: [UInt8] = [
-          0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // 01234567
-          0x08, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 89:;<=>?
-          0x00, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x00, // @ABCDEFG
-          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // HIJKLMNO
-        ]
-
-        // Grab two characters at a time, map them and turn it into a byte
-        for i in stride(from: 0, to: textToEncode.count, by: 2) {
-          let index1 = Int(chars[i] & 0x1F ^ 0x10)
-          let index2 = Int(chars[i + 1] & 0x1F ^ 0x10)
-          bytes.append(map[index1] << 4 | map[index2])
-        }
-
-        return Data(bytes)
-    }
-    func loadImage(filepath: String) -> Data {
-        var data: Data? = nil
-        let fileLocation = Bundle.main.path(forResource: filepath, ofType: "png")
-        self.fireEvent("app:sendbird_chat_log", with: ["message": fileLocation])
-        let url = URL(fileURLWithPath: fileLocation!)
-        data = try? Data(contentsOf: url)
-        return data!
-        //let uiImage: UIImage = UIImage(data: data!)!
-        //return uiImage
-    }
+//
+//    func hexDecodedData(textToEncode: String) -> Data {
+//        // Get the UTF8 characters of this string
+//        let chars = Array(textToEncode.utf8)
+//
+//        // Keep the bytes in an UInt8 array and later convert it to Data
+//        var bytes = [UInt8]()
+//        bytes.reserveCapacity(textToEncode.count / 2)
+//
+//        // It is a lot faster to use a lookup map instead of strtoul
+//        let map: [UInt8] = [
+//          0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // 01234567
+//          0x08, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 89:;<=>?
+//          0x00, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x00, // @ABCDEFG
+//          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // HIJKLMNO
+//        ]
+//
+//        // Grab two characters at a time, map them and turn it into a byte
+//        for i in stride(from: 0, to: textToEncode.count, by: 2) {
+//          let index1 = Int(chars[i] & 0x1F ^ 0x10)
+//          let index2 = Int(chars[i + 1] & 0x1F ^ 0x10)
+//          bytes.append(map[index1] << 4 | map[index2])
+//        }
+//
+//        return Data(bytes)
+//    }
+//    func loadImage(filepath: String) -> Data {
+//        var data: Data? = nil
+//        let fileLocation = Bundle.main.path(forResource: filepath, ofType: "png")
+//        self.fireEvent("app:sendbird_chat_log", with: ["message": fileLocation])
+//        let url = URL(fileURLWithPath: fileLocation!)
+//        data = try? Data(contentsOf: url)
+//        return data!
+//        //let uiImage: UIImage = UIImage(data: data!)!
+//        //return uiImage
+//    }
 
     
 }

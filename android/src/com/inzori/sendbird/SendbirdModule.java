@@ -50,10 +50,10 @@ public class SendbirdModule extends KrollModule
 	private static final String LCAT = "SendbirdModule";
 	private String appId = "";
 	private String userId = "";
-	private String userName = "";
-	private String userAvatar = "";
+//	private String userName = "";
+//	private String userAvatar = "";
 	private String accessToken = "";
-	private String deviceToken = "";
+//	private String deviceToken = "";
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
@@ -78,8 +78,8 @@ public class SendbirdModule extends KrollModule
 
 		appId = options.containsKey("appId") ? (String) options.get("appId") : "";
 		userId = options.containsKey("userId") ? (String) options.get("userId") : "";
-		userName = options.containsKey("userName") ? (String) options.get("userName") : "";
-		userAvatar = options.containsKey("userAvatar") ? (String) options.get("userAvatar") : "";
+//		userName = options.containsKey("userName") ? (String) options.get("userName") : "";
+//		userAvatar = options.containsKey("userAvatar") ? (String) options.get("userAvatar") : "";
 		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
 
 		SendbirdUIKit.init(new SendbirdUIKitAdapter() {
@@ -107,13 +107,13 @@ public class SendbirdModule extends KrollModule
 					@Nullable
 					@Override
 					public String getNickname() {
-						return userName;
+						return "";
 					}
 
 					@Nullable
 					@Override
 					public String getProfileUrl() {
-						return userAvatar;
+						return "";
 					}
 				};
 			}
@@ -125,8 +125,6 @@ public class SendbirdModule extends KrollModule
                 return new InitResultHandler() {
                     @Override
                     public void onMigrationStarted() {
-                        // DB migration has started.
-						//Log.i(LCAT, "onMigrationStarted method");
                     }
 
                     @Override
@@ -135,7 +133,6 @@ public class SendbirdModule extends KrollModule
 						Log.e(LCAT, "Sendbird onInitFailed()");
 						KrollDict eventData = new KrollDict();
 						eventData.put("success",false);
-						//fireEvent("sendbird:status", eventData);
 
 						onComplete.callAsync(getKrollObject(), eventData);
                     }
@@ -151,7 +148,6 @@ public class SendbirdModule extends KrollModule
 
 						KrollDict eventData = new KrollDict();
 						eventData.put("success",true);
-						//fireEvent("sendbird:status", eventData);
 
 						onComplete.callAsync(getKrollObject(), eventData);
                     }
@@ -165,10 +161,10 @@ public class SendbirdModule extends KrollModule
 	{
 		Log.w(LCAT, "Sendbird connectUser()");
 		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
-		String connectUserId = options.containsKey("userId") ? (String) options.get("userId") : "";
-		String connectAccessToken = options.containsKey("authToken") ? (String) options.get("authToken") : "";
+		//String userId = options.containsKey("userId") ? (String) options.get("userId") : "";
+		accessToken = options.containsKey("authToken") ? (String) options.get("authToken") : "";
 
-		SendbirdChat.connect(connectUserId, connectAccessToken, (user, e) -> {
+		SendbirdChat.connect(userId, accessToken, (user, e) -> {
 			KrollDict eventData = new KrollDict();
 			if (e != null) {
 				eventData.put("success",false);
@@ -209,10 +205,12 @@ public class SendbirdModule extends KrollModule
 	@Kroll.method
 	public void launchChat(KrollDict options)
 	{
-		Log.i(LCAT, "Sendbird launchChat()");
+
 
 		String groupChannelUrl = options.containsKey("groupChannelUrl") ? (String) options.get("groupChannelUrl") : "";
 		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
+
+		Log.w(LCAT, "Sendbird launchChat() url: " + groupChannelUrl);
 
 		KrollDict eventData = new KrollDict();
 		try {
