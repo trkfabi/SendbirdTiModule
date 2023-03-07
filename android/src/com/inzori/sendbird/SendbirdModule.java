@@ -56,68 +56,11 @@ import com.sendbird.android.params.MessageListParams;
 
 import java.util.Objects;
 
-//
-///**
-// * Implements the customized <code>ChannelHeaderComponent</code> used in <code>CustomChannelFragment</code>.
-// */
-// class CustomChannelHeaderComponent extends ChannelHeaderComponent {
-//	private Toolbar toolbar;
-//	@Nullable
-//	private View.OnClickListener searchButtonClickListener;
-//
-//	public CustomChannelHeaderComponent() {
-//		super();
-//	}
-//
-//	@NonNull
-//	@Override
-//	public View onCreateView(@NonNull Context context, @NonNull LayoutInflater inflater, @NonNull ViewGroup parent, @Nullable Bundle args) {
-//		toolbar = new Toolbar(context);
-//		toolbar.setLayoutParams(new Toolbar.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) context.getResources().getDimension(R.dimen.sb_size_56)));
-//		toolbar.setBackgroundColor(-65536);
-//		//toolbar.setTitleTextAppearance(context, R.style.SendbirdH1OnDark01);
-//		//toolbar.setSubtitleTextAppearance(context, R.style.SendbirdCaption1OnDark02);
-//		//toolbar.setNavigationIcon(R.drawable.icon_arrow_left);
-//		toolbar.setNavigationOnClickListener(this::onLeftButtonClicked);
-//
-//		return toolbar;
-//	}
-//
-//	@Override
-//	public void notifyChannelChanged(@NonNull GroupChannel channel) {
-//		toolbar.setTitle(channel.getName());
-//	}
-//
-//	@Override
-//	public void notifyHeaderDescriptionChanged(@Nullable String description) {
-//		toolbar.setSubtitle(description);
-//	}
-//
-//	public void setSearchButtonClickListener(@Nullable View.OnClickListener searchButtonClickListener) {
-//		this.searchButtonClickListener = searchButtonClickListener;
-//	}
-//}
-//
-//
-///**
-///**
-// * Implements the customized <code>ChannelFragment</code>.
-// */
-// class CustomChannelFragment extends ChannelFragment {
-//
-//	@NonNull
-//	@Override
-//	protected ChannelModule onCreateModule(@NonNull Bundle args) {
-//		ChannelModule module = super.onCreateModule(args);
-//		module.setHeaderComponent(new CustomChannelHeaderComponent());
-//		return module;
-//	}
-//
-//}
 
 class CustomFragmentFactory extends UIKitFragmentFactory {
 
 	// TODO : Override the methods that create the fragment you wish to customize.
+	private static final String LCAT = "SendbirdModule";
 
 	@Override
 	public ChannelFragment newChannelFragment(@NonNull String channelUrl, @NonNull Bundle args) {
@@ -127,6 +70,13 @@ class CustomFragmentFactory extends UIKitFragmentFactory {
 		return new ChannelFragment.Builder(channelUrl)
 				.setCustomFragment(fragment)
 				.setUseHeaderRightButton(false)
+//				.setOnHeaderLeftButtonClickListener(new View.OnClickListener() {
+//					@Override
+//					public void onClick(View v) {
+//						// Execute your function here
+//						Log.w(LCAT, "Sendbird chat closed()");
+//					}
+//				})
 				.withArguments(args)
 				.build();
 	}
@@ -294,19 +244,14 @@ public class SendbirdModule extends KrollModule
 		});
 	}
 
-//	private fun createChannelFragment(channelUrl: String): ChannelFragment {
-//		return ChannelFragment.Builder(channelUrl)
-//				.setCustomChannelFragment(SendbirdCustomChannelFragment())
-//				.setUseHeader(true)
-//				.setUseHeaderLeftButton(false)
-//				.setUseHeaderRightButton(false)
-//				.setInputLeftButtonIconResId(resourcesR.drawable.ic_message_plus)
-//				.setInputRightButtonIconResId(resourcesR.drawable.ic_message_send)
-//				.setEmptyIcon(resourcesR.drawable.ic_no_messages)
-//				.setEmptyText(resourcesR.string.copy_2971)
-//				.build();
-//	}
-//
+	@Kroll.method
+	public void chatClosed() {
+		KrollDict eventData = new KrollDict();
+		eventData.put("success",true);
+		eventData.put("message","The chat was closed");
+		fireEvent("app:sendbird_chat_dismissed", eventData);
+	}
+
 	@Kroll.method
 	public void launchChat(KrollDict options)
 	{
