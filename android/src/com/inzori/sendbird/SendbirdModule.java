@@ -14,32 +14,123 @@ import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.titanium.TiApplication;
-import org.appcelerator.titanium.util.TiActivitySupport;
-import org.appcelerator.titanium.util.TiActivityResultHandler;
-import org.appcelerator.titanium.TiBlob;
 import org.appcelerator.kroll.common.Log;
-import org.appcelerator.titanium.util.TiConvert;
 
-import android.app.Application;
-import android.app.Activity;
 import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
+
 import android.content.Context;
 
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+
+import com.sendbird.android.params.FileMessageCreateParams;
+import com.sendbird.android.params.UserMessageCreateParams;
+import com.sendbird.android.params.UserMessageUpdateParams;
 import com.sendbird.uikit.SendbirdUIKit;
+import com.sendbird.uikit.activities.MessageSearchActivity;
 import com.sendbird.uikit.adapter.SendbirdUIKitAdapter;
 import com.sendbird.uikit.activities.ChannelListActivity;
 import com.sendbird.uikit.activities.ChannelActivity;
+import com.sendbird.uikit.consts.StringSet;
+import com.sendbird.uikit.fragments.ChannelFragment;
+import com.sendbird.uikit.fragments.CreateChannelFragment;
+import com.sendbird.uikit.fragments.UIKitFragmentFactory;
 import com.sendbird.uikit.interfaces.UserInfo;
 import com.sendbird.android.SendbirdChat;
-import com.sendbird.android.user.User;
 import com.sendbird.android.handler.InitResultHandler;
-import com.sendbird.android.handler.ConnectHandler;
 import com.sendbird.android.handler.DisconnectHandler;
 import com.sendbird.android.exception.SendbirdException;
-import com.sendbird.android.exception.SendbirdError;
-import com.sendbird.android.exception.SendbirdException;
+import com.sendbird.android.channel.GroupChannel;
+import com.sendbird.uikit.modules.ChannelModule;
+import com.sendbird.uikit.modules.components.ChannelHeaderComponent;
+import com.sendbird.uikit.vm.ChannelViewModel;
+import androidx.lifecycle.ViewModel;
+import com.sendbird.android.params.MessageListParams;
+
+import java.util.Objects;
+
+//
+///**
+// * Implements the customized <code>ChannelHeaderComponent</code> used in <code>CustomChannelFragment</code>.
+// */
+// class CustomChannelHeaderComponent extends ChannelHeaderComponent {
+//	private Toolbar toolbar;
+//	@Nullable
+//	private View.OnClickListener searchButtonClickListener;
+//
+//	public CustomChannelHeaderComponent() {
+//		super();
+//	}
+//
+//	@NonNull
+//	@Override
+//	public View onCreateView(@NonNull Context context, @NonNull LayoutInflater inflater, @NonNull ViewGroup parent, @Nullable Bundle args) {
+//		toolbar = new Toolbar(context);
+//		toolbar.setLayoutParams(new Toolbar.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) context.getResources().getDimension(R.dimen.sb_size_56)));
+//		toolbar.setBackgroundColor(-65536);
+//		//toolbar.setTitleTextAppearance(context, R.style.SendbirdH1OnDark01);
+//		//toolbar.setSubtitleTextAppearance(context, R.style.SendbirdCaption1OnDark02);
+//		//toolbar.setNavigationIcon(R.drawable.icon_arrow_left);
+//		toolbar.setNavigationOnClickListener(this::onLeftButtonClicked);
+//
+//		return toolbar;
+//	}
+//
+//	@Override
+//	public void notifyChannelChanged(@NonNull GroupChannel channel) {
+//		toolbar.setTitle(channel.getName());
+//	}
+//
+//	@Override
+//	public void notifyHeaderDescriptionChanged(@Nullable String description) {
+//		toolbar.setSubtitle(description);
+//	}
+//
+//	public void setSearchButtonClickListener(@Nullable View.OnClickListener searchButtonClickListener) {
+//		this.searchButtonClickListener = searchButtonClickListener;
+//	}
+//}
+//
+//
+///**
+///**
+// * Implements the customized <code>ChannelFragment</code>.
+// */
+// class CustomChannelFragment extends ChannelFragment {
+//
+//	@NonNull
+//	@Override
+//	protected ChannelModule onCreateModule(@NonNull Bundle args) {
+//		ChannelModule module = super.onCreateModule(args);
+//		module.setHeaderComponent(new CustomChannelHeaderComponent());
+//		return module;
+//	}
+//
+//}
+
+class CustomFragmentFactory extends UIKitFragmentFactory {
+
+	// TODO : Override the methods that create the fragment you wish to customize.
+
+	@Override
+	public ChannelFragment newChannelFragment(@NonNull String channelUrl, @NonNull Bundle args) {
+		// TODO : Return the customized `ChannelFragment` here.
+		// You can send data from activity to the custom fragment through `Bundle`.
+		final CustomChannelFragment fragment = new CustomChannelFragment();
+		return new ChannelFragment.Builder(channelUrl)
+				.setCustomFragment(fragment)
+				.setUseHeaderRightButton(false)
+				.withArguments(args)
+				.build();
+	}
+}
 
 
 @Kroll.module(name="Sendbird", id="com.inzori.sendbird")
@@ -68,6 +159,7 @@ public class SendbirdModule extends KrollModule
 	{
 		Log.d(LCAT, "Sendbird onAppCreate()");
 		// put module init code that needs to run when the application is created
+		SendbirdUIKit.setUIKitFragmentFactory(new CustomFragmentFactory());
 	}
 
 	// Methods
@@ -202,11 +294,22 @@ public class SendbirdModule extends KrollModule
 		});
 	}
 
+//	private fun createChannelFragment(channelUrl: String): ChannelFragment {
+//		return ChannelFragment.Builder(channelUrl)
+//				.setCustomChannelFragment(SendbirdCustomChannelFragment())
+//				.setUseHeader(true)
+//				.setUseHeaderLeftButton(false)
+//				.setUseHeaderRightButton(false)
+//				.setInputLeftButtonIconResId(resourcesR.drawable.ic_message_plus)
+//				.setInputRightButtonIconResId(resourcesR.drawable.ic_message_send)
+//				.setEmptyIcon(resourcesR.drawable.ic_no_messages)
+//				.setEmptyText(resourcesR.string.copy_2971)
+//				.build();
+//	}
+//
 	@Kroll.method
 	public void launchChat(KrollDict options)
 	{
-
-
 		String groupChannelUrl = options.containsKey("groupChannelUrl") ? (String) options.get("groupChannelUrl") : "";
 		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
 
@@ -214,6 +317,7 @@ public class SendbirdModule extends KrollModule
 
 		KrollDict eventData = new KrollDict();
 		try {
+
 			Intent intent = ChannelActivity.newIntent(TiApplication.getInstance().getApplicationContext(), groupChannelUrl);
 			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 			TiApplication.getInstance().getApplicationContext().startActivity(intent);
