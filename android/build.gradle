@@ -6,4 +6,5 @@ repositories {
 }
 dependencies {
   	implementation 'com.sendbird.sdk:uikit:3.3.2'
+	implementation 'com.sendbird.sdk:sendbird-chat:4.5.0'
 }

@@ -11,35 +11,6 @@ import TitaniumKit
 import SendbirdUIKit
 import SendbirdChatSDK
 
-/**
- 
- Titanium Swift Module Requirements
- ---
- 
- 1. Use the @objc annotation to expose your class to Objective-C (used by the Titanium core)
- 2. Use the @objc annotation to expose your method to Objective-C as well.
- 3. Method arguments always have the "[Any]" type, specifying a various number of arguments.
- Unwrap them like you would do in Swift, e.g. "guard let arguments = arguments, let message = arguments.first"
- 4. You can use any public Titanium API like before, e.g. TiUtils. Remember the type safety of Swift, like Int vs Int32
- and NSString vs. String.
- 
- */
-
-
-
-func loadImageFromModule(_ args: Any?) -> UIImage? {
-    guard let imageName = args as? String else {
-        return nil
-    }
-    
-    print("[INFO] loadImageFromModule \(imageName)")
-    
-    // Load the image from the module assets
-    let imagePath = Bundle.main.path(forResource: imageName, ofType: "png")
-    let image = UIImage(contentsOfFile: imagePath!)
-    return image
-}
-
 extension UIImageView {
     func load(url: URL) {
         DispatchQueue.global().async { [weak self] in
@@ -72,23 +43,30 @@ class CustomAdminMessageCell: SBUAdminMessageCell {
          label.text = "Admin User"
          return label
      }()
+    
+    let messageCreatedAtLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .gray
+        label.font = .systemFont(ofSize: 12)
+        return label
+    }()
+    
 
-
-     
      override func setupViews() {
          super.setupViews()
-         
          self.contentView.addSubview(nicknameLabel)
          self.contentView.addSubview(avatarImageView)
          self.messageContentView.addSubview(self.messageLabel)
+         self.contentView.addSubview(messageCreatedAtLabel)
          
          // NICKNAME LABEL
          nicknameLabel.textColor = theme.userNameTextColor
          nicknameLabel.font = theme.userNameFont
          
-
-         // IMAGE
+         messageCreatedAtLabel.textColor = theme.timeTextColor
+         messageCreatedAtLabel.font = theme.timeFont
          
+         // IMAGE
          avatarImageView.load(url: URL(string: "https://w7.pngwing.com/pngs/340/946/png-transparent-avatar-user-computer-icons-software-developer-avatar-child-face-heroes-thumbnail.png")!)
          
          // messageContentView
@@ -114,6 +92,12 @@ class CustomAdminMessageCell: SBUAdminMessageCell {
              nicknameLabel.leadingAnchor.constraint(equalTo: self.contentView.leadingAnchor, constant: 60), //ok
          ])
          
+         messageCreatedAtLabel.translatesAutoresizingMaskIntoConstraints = false
+         NSLayoutConstraint.activate([
+            messageCreatedAtLabel.bottomAnchor.constraint(equalTo: self.messageContentView.bottomAnchor, constant: -3), //ok
+            messageCreatedAtLabel.leadingAnchor.constraint(equalTo: self.messageContentView.trailingAnchor, constant: 5), //ok
+         ])
+         
          // Remove all the existing constraints for the view
          self.messageContentView.translatesAutoresizingMaskIntoConstraints = true
          self.messageContentView.removeConstraints(self.messageContentView.constraints)
@@ -134,16 +118,12 @@ class CustomAdminMessageCell: SBUAdminMessageCell {
          
         self.messageLabel.translatesAutoresizingMaskIntoConstraints = false
         self.messageLabel.numberOfLines = 0
-        //self.messageLabel.setContentHuggingPriority(.defaultLow, for: .vertical)
         NSLayoutConstraint.activate([
-             //self.messageLabel.topAnchor.constraint(equalTo: self.messageContentView.topAnchor, constant: 10), // 1-era 10 ----
              self.messageLabel.topAnchor.constraint(equalTo: nicknameLabel.topAnchor, constant: 20),
-             //self.messageLabel.bottomAnchor.constraint(equalTo: self.messageContentView.bottomAnchor, constant: -10), // ok
              self.messageLabel.leadingAnchor.constraint(equalTo: self.contentView.leadingAnchor, constant: 60), // ok
              self.messageLabel.trailingAnchor.constraint(equalTo: self.messageContentView.trailingAnchor, constant: -5), // era -20
              self.messageLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 311),
              self.messageLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 22),
-             //self.messageLabel.centerYAnchor.constraint(equalTo: self.messageContentView.centerYAnchor)
          ])
  
          
@@ -190,15 +170,21 @@ class CustomAdminMessageCell: SBUAdminMessageCell {
          
          self.messageLabel.text = message.message
 
+         let dateFormatter = DateFormatter()
+         dateFormatter.dateFormat = "h:mm a"
+         let timestamp = dateFormatter.string(from: Date(timeIntervalSince1970: Double(message.createdAt) / 1000))
+         self.messageCreatedAtLabel.text = timestamp
+         
+         //self.dateView.isHidden = false
          self.layoutIfNeeded()
+         
+         print("[INFO] configure Admin CELL")
     }
 
  }
 
-
-
 @objc(ComInzoriSendbirdModule)
-class ComInzoriSendbirdModule: TiModule {
+class ComInzoriSendbirdModule: TiModule, BaseChannelDelegate {
 
   func moduleGUID() -> String {
     return "a29379f1-91d1-462e-a99a-ab8256581065"
@@ -210,12 +196,10 @@ class ComInzoriSendbirdModule: TiModule {
 
   override func startup() {
     super.startup()
-    print("[DEBUG] \(self) loaded")
+    print("[INFO] \(self) loaded")
 
   }
-
-
-
+    
     var sdkInitialized = false
     var userConnected = false
     var userId = ""
@@ -228,7 +212,7 @@ class ComInzoriSendbirdModule: TiModule {
         topPresentedController!.dismiss(animated: true) {
             self.fireEvent("app:sendbird_chat_dismissed", with: ["key": "value"])
         }
-        //naviVC.popViewController(animated: true)
+        
     }
     
     @objc(initSendbird:)
@@ -239,108 +223,23 @@ class ComInzoriSendbirdModule: TiModule {
         
         let appId = options["appId"] as? String ?? ""
         SendbirdUI.setLogLevel(.all)
-        // seems to be sync
-        SendbirdUI.initialize(applicationId: appId) { // This is the origin.
-            // Initialization of SendbirdUIKit has started.
-            // Show a loading indicator.
+        SendbirdUI.initialize(applicationId: appId) {
             debugPrint("[INFO] Initialization of SendbirdUIKit has started. Show a loading indicator.")
         } migrationHandler: {
-            // DB migration has started.
             debugPrint("[INFO] DB migration has started.")
         } completionHandler: { error in
-            // If DB migration is successful, proceed to the next step.
-            // If DB migration fails, an error exists.
-            // Hide the loading indicator.
             if error != nil {
-                // handle error
                 callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
             }
         }
         
         SBUGlobals.isChannelListMessageReceiptStateEnabled = true
         SBUGlobals.isChannelListTypingIndicatorEnabled = true
-        //SBUFontSet.body1 = .systemFont(ofSize: 20, weight: .regular)
         
         sdkInitialized = true
         callback.call([["success": true, "message": "Sdk initialized"]], thisObject: self)
     }
 
-    
-    @objc(registerDevicePushToken:)
-    func registerDevicePushToken(arguments: Array<Any>?) {
-        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
-        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
-        let deviceToken = options["deviceToken"] as? String ?? ""
-        if(deviceToken.count > 0) {
-            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
-            SendbirdChat.registerDevicePushToken(deviceTokenData, unique: false) { status, error in
-                if error == nil {
-                    // A device token is successfully registered.
-                    callback.call([["success": true, "message": "User is connected to Sendbird server and device token registered \(String(describing: deviceToken)) and data \(String(describing: deviceTokenData))", "tokenStatus": "registered"]], thisObject: self)
-                }
-                else {
-                    if status == PushTokenRegistrationStatus.pending {
-                        // A token registration is pending.
-                        // If this status is returned,
-                        // invoke the registerDevicePushToken:unique:completionHandler:
-                        // with [SendbirdChat getPendingPushToken] after connection.
-                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token is PENDING \(String(describing: deviceToken))", "tokenStatus": "pending"]], thisObject: self)
-                    }
-                    else {
-                        // Handle registration failure.
-                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token registration has error \(String(describing: error))", "tokenStatus": "error"]], thisObject: self)
-                    }
-                }
-            }
-        } else {
-            callback.call([["success": false, "error": "No device token received", "tokenStatus": "error"]], thisObject: self)
-        }
-    }
-    
-    @objc(disconnectUser:)
-    func disconnectUser(arguments: Array<Any>?) {
-        self.fireEvent("app:sendbird_chat_log", with: ["message": "disconnectUser()"])
-        SendbirdChat.disconnect()
-        userConnected = false
-        SBUGlobals.currentUser = nil
-
-    }
-    
-    @objc(unregisterPushToken:)
-    func unregisterPushToken(arguments: Array<Any>?) {
-        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
-        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
-        let deviceToken = options["deviceToken"] as? String ?? ""
-        if(deviceToken.count > 0) {
-            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
-            SendbirdChat.unregisterPushToken(deviceTokenData) { response, error in
-                guard error == nil else {
-                    // Handle error.
-                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
-                    return
-                }
-                callback.call([["success": true, "message": "User device token was unregistered"]], thisObject: self)
-            }
-        } else {
-            callback.call([["success": false, "error": "No device token received"]], thisObject: self)
-        }
-    }
-    
-    @objc(unregisterAllPushToken:)
-    func unregisterAllPushToken(arguments: Array<Any>?) {
-        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
-        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
-        SendbirdChat.unregisterAllPushToken { (response, error) in
-            guard error == nil else {
-                // Handle error.
-                callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
-                return
-                
-            }
-            callback.call([["success": true, "message": "All user devices tokens were unregistered"]], thisObject: self)
-        }
-        
-    }
     
     @objc(connectUser:)
     func connectUser(arguments: Array<Any>?) {
@@ -396,6 +295,86 @@ class ComInzoriSendbirdModule: TiModule {
         }
     }
     
+    @objc(disconnectUser:)
+    func disconnectUser(arguments: Array<Any>?) {
+        self.fireEvent("app:sendbird_chat_log", with: ["message": "disconnectUser()"])
+        SendbirdChat.disconnect()
+        userConnected = false
+        SBUGlobals.currentUser = nil
+
+    }
+    
+    
+    @objc(registerDevicePushToken:)
+    func registerDevicePushToken(arguments: Array<Any>?) {
+        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
+        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
+        let deviceToken = options["deviceToken"] as? String ?? ""
+        if(deviceToken.count > 0) {
+            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
+            SendbirdChat.registerDevicePushToken(deviceTokenData, unique: false) { status, error in
+                if error == nil {
+                    // A device token is successfully registered.
+                    callback.call([["success": true, "message": "User is connected to Sendbird server and device token registered \(String(describing: deviceToken)) and data \(String(describing: deviceTokenData))", "tokenStatus": "registered"]], thisObject: self)
+                }
+                else {
+                    if status == PushTokenRegistrationStatus.pending {
+                        // A token registration is pending.
+                        // If this status is returned,
+                        // invoke the registerDevicePushToken:unique:completionHandler:
+                        // with [SendbirdChat getPendingPushToken] after connection.
+                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token is PENDING \(String(describing: deviceToken))", "tokenStatus": "pending"]], thisObject: self)
+                    }
+                    else {
+                        // Handle registration failure.
+                        callback.call([["success": true, "message": "User is connected to Sendbird server and device token registration has error \(String(describing: error))", "tokenStatus": "error"]], thisObject: self)
+                    }
+                }
+            }
+        } else {
+            callback.call([["success": false, "error": "No device token received", "tokenStatus": "error"]], thisObject: self)
+        }
+    }
+    
+    
+    @objc(unregisterPushToken:)
+    func unregisterPushToken(arguments: Array<Any>?) {
+        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
+        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
+        let deviceToken = options["deviceToken"] as? String ?? ""
+        if(deviceToken.count > 0) {
+            let deviceTokenData = hexDecodedData(textToEncode:deviceToken)
+            SendbirdChat.unregisterPushToken(deviceTokenData) { response, error in
+                guard error == nil else {
+                    // Handle error.
+                    callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
+                    return
+                }
+                callback.call([["success": true, "message": "User device token was unregistered"]], thisObject: self)
+            }
+        } else {
+            callback.call([["success": false, "error": "No device token received"]], thisObject: self)
+        }
+    }
+    
+    @objc(unregisterAllPushToken:)
+    func unregisterAllPushToken(arguments: Array<Any>?) {
+        guard let arguments = arguments, let options = arguments[0] as? [String: Any] else { return }
+        guard let callback: KrollCallback = options["onComplete"] as? KrollCallback else { return }
+        SendbirdChat.unregisterAllPushToken { (response, error) in
+            guard error == nil else {
+                // Handle error.
+                callback.call([["success": false, "error": "\(String(describing: error))"]], thisObject: self)
+                return
+                
+            }
+            callback.call([["success": true, "message": "All user devices tokens were unregistered"]], thisObject: self)
+        }
+        
+    }
+    
+    
+    
     @objc(launchChat:)
     func launchChat(arguments: Array<Any>?) {
         self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat()"])
@@ -425,22 +404,22 @@ class ComInzoriSendbirdModule: TiModule {
         if naviVC.viewIfLoaded?.window != nil {
             // viewController is visible
             print("[WARN] naviVC is visible")
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window is open"])
+            //self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window is open"])
             if (groupChannelUrl.count > 0) {
-                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - channel url exists"])
+                self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - channel url exists", "channelURL": groupChannelUrl])
                 SendbirdUI.moveToChannel(channelURL: groupChannelUrl, basedOnChannelList: true)
-                callback.call([["success": true, "message": "Chat opened on already visible controller"]], thisObject: self)
+                callback.call([["success": true, "message": "Chat opened on already visible controller", "channelURL": groupChannelUrl]], thisObject: self)
                 return
             }
         } else {
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window not opened"])
+            //self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - window not opened"])
             print("[WARN] naviVC is NOT visible")
             //callback.call([["success": false, "error": "naviVC is NOT visible"]], thisObject: self)
         }
 
         if (groupChannelUrl.count > 0) {
             // we already have a channel
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - have a channel URL"])
+            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - have a channel URL", "channelURL": groupChannelUrl])
             GroupChannel.getChannel(url: groupChannelUrl) { channel, error in
                 guard error == nil else {
                     // Handle error.
@@ -458,14 +437,8 @@ class ComInzoriSendbirdModule: TiModule {
             let userIds = [userId, receiverUserId]
             let params = GroupChannelCreateParams()
             params.isDistinct = true
-//            if (groupAvatarFile.count > 0) {
-//                params.coverImage = loadImage(filepath: groupAvatarFile)
-//            } else {
-//                params.coverURL = groupAvatarUrl
-//            }
             params.name = groupName
             params.userIds = userIds
-            //params.channelURL = groupChannelUrl
             params.customType = groupCustomType
             
             self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will create channel"])
@@ -481,9 +454,9 @@ class ComInzoriSendbirdModule: TiModule {
                 
             }
         }
-        
+
         func openChat(channel: GroupChannel) {
-            
+
             // use the created channel for one-to-one chat
             let channelVC = SBUGroupChannelViewController(
                 channel: channel,
@@ -496,7 +469,6 @@ class ComInzoriSendbirdModule: TiModule {
             let rightBarButton = UIBarButtonItem(customView: rightButton)
             channelVC.headerComponent?.rightBarButton = rightBarButton
             
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - will change button"])
             let backButton: UIButton
             if #available(iOS 13.0, *) {
                 backButton = UIButton(type: .close)
@@ -517,21 +489,18 @@ class ComInzoriSendbirdModule: TiModule {
             let backBarButton = UIBarButtonItem(customView: backButton)
             channelVC.headerComponent?.leftBarButton = backBarButton
             
-            //channelVC.listComponent!.register(userMessageCell: CustomUserMessageCell())
-            
             channelVC.listComponent!.register(adminMessageCell: CustomAdminMessageCell())
             
-            self.fireEvent("app:sendbird_chat_log", with: ["message": "launchChat - button changed"])
             
             naviVC = UINavigationController(rootViewController: channelVC)
             naviVC.modalPresentationStyle = UIModalPresentationStyle.fullScreen
             
             topPresentedController!.present(naviVC, animated: true) {
                 // This code gets executed after the modal window is dismissed
-                self.fireEvent("app:sendbird_chat_opened", with: ["key": "value"])
+                self.fireEvent("app:sendbird_chat_opened", with: ["channelURL": channel.channelURL])
             }
             
-            callback.call([["success": true, "message": "Chat opened"]], thisObject: self)
+            callback.call([["success": true, "message": "Chat opened", "channelURL": channel.channelURL]], thisObject: self)
         }
         
 
@@ -573,4 +542,6 @@ class ComInzoriSendbirdModule: TiModule {
         //let uiImage: UIImage = UIImage(data: data!)!
         //return uiImage
     }
+
+    
 }

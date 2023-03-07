@@ -9,11 +9,14 @@
 package com.inzori.sendbird;
 
 
-
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.KrollDict;
+import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.titanium.TiApplication;
+import org.appcelerator.titanium.util.TiActivitySupport;
+import org.appcelerator.titanium.util.TiActivityResultHandler;
+import org.appcelerator.titanium.TiBlob;
 import org.appcelerator.kroll.common.Log;
 import org.appcelerator.titanium.util.TiConvert;
 
@@ -27,8 +30,15 @@ import android.content.Context;
 import com.sendbird.uikit.SendbirdUIKit;
 import com.sendbird.uikit.adapter.SendbirdUIKitAdapter;
 import com.sendbird.uikit.activities.ChannelListActivity;
+import com.sendbird.uikit.activities.ChannelActivity;
 import com.sendbird.uikit.interfaces.UserInfo;
+import com.sendbird.android.SendbirdChat;
+import com.sendbird.android.user.User;
 import com.sendbird.android.handler.InitResultHandler;
+import com.sendbird.android.handler.ConnectHandler;
+import com.sendbird.android.handler.DisconnectHandler;
+import com.sendbird.android.exception.SendbirdException;
+import com.sendbird.android.exception.SendbirdError;
 import com.sendbird.android.exception.SendbirdException;
 
 
@@ -41,6 +51,10 @@ public class SendbirdModule extends KrollModule
 	private String appId = "";
 	private String userId = "";
 	private String userName = "";
+	private String userAvatar = "";
+	private String accessToken = "";
+	private String deviceToken = "";
+
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
 
@@ -52,80 +66,78 @@ public class SendbirdModule extends KrollModule
 	@Kroll.onAppCreate
 	public static void onAppCreate(TiApplication app)
 	{
-		Log.d(LCAT, "inside onAppCreate");
+		Log.d(LCAT, "Sendbird onAppCreate()");
 		// put module init code that needs to run when the application is created
 	}
 
 	// Methods
 	@Kroll.method
-	public void initSendbird(KrollDict args)
+	public void initSendbird(KrollDict options)
 	{
-		Log.d(LCAT, "initSendbird called");
+		Log.w(LCAT, "Sendbird initSendbird()");
 
-		if(args.containsKey("appId")){
-			appId = args.getString("appId");
-		} else return;
-		if (args.containsKey("userId")) {
-			userId = args.getString("userId");
-		} else return;
-		if(args.containsKey("userName")){
-			userName = args.getString("userName");
-		} else return;
+		appId = options.containsKey("appId") ? (String) options.get("appId") : "";
+		userId = options.containsKey("userId") ? (String) options.get("userId") : "";
+		userName = options.containsKey("userName") ? (String) options.get("userName") : "";
+		userAvatar = options.containsKey("userAvatar") ? (String) options.get("userAvatar") : "";
+		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
 
 		SendbirdUIKit.init(new SendbirdUIKitAdapter() {
-            @NonNull
-            @Override
-            public String getAppId() {
-                return appId;  // Specify your Sendbird application ID.
-            }
+			@NonNull
+			@Override
+			public String getAppId() {
+				return appId;
+			}
 
-            @Nullable
-            @Override
-            public String getAccessToken() {
-                return "";
-            }
+			@Nullable
+			@Override
+			public String getAccessToken() {
+				return accessToken;
+			}
 
-            @NonNull
-            @Override
-            public UserInfo getUserInfo() {
-                return new UserInfo() {
-                    @Override
-                    public String getUserId() {
-                        return userId;  // Specify your user ID.
-                    }
+			@NonNull
+			@Override
+			public UserInfo getUserInfo() {
+				return new UserInfo() {
+					@Override
+					public String getUserId() {
+						return userId;
+					}
 
-                    @Nullable
-                    @Override
-                    public String getNickname() {
-                        return userName;  // Specify your user nickname.
-                    }
+					@Nullable
+					@Override
+					public String getNickname() {
+						return userName;
+					}
 
-                    @Nullable
-                    @Override
-                    public String getProfileUrl() {
-                        return "";
-                    }
-                };
-            }
+					@Nullable
+					@Override
+					public String getProfileUrl() {
+						return userAvatar;
+					}
+				};
+			}
 
             @NonNull
             @Override
             public InitResultHandler getInitResultHandler() {
-				Log.d(LCAT, "getInitResultHandler method");
+				Log.w(LCAT, "Sendbird getInitResultHandler()");
                 return new InitResultHandler() {
                     @Override
                     public void onMigrationStarted() {
                         // DB migration has started.
-						Log.d(LCAT, "onMigrationStarted method");
+						//Log.i(LCAT, "onMigrationStarted method");
                     }
 
                     @Override
                     public void onInitFailed(SendbirdException e) {
                         // If DB migration fails, this method is called.
-						Log.d(LCAT, "onInitFailed method");
+						Log.e(LCAT, "Sendbird onInitFailed()");
 						KrollDict eventData = new KrollDict();
 						eventData.put("success",false);
-						fireEvent("sendbird:status", eventData);
+						//fireEvent("sendbird:status", eventData);
+
+						onComplete.callAsync(getKrollObject(), eventData);
                     }
 
                     @Override
@@ -135,33 +147,92 @@ public class SendbirdModule extends KrollModule
                         // And observes the `MutableLiveData<InitState> initState` value in `SplashActivity()`.
                         // If successful, the `LoginActivity` screen
                         // Or the `HomeActivity` screen will show.
-						Log.d(LCAT, "onInitSucceed method");
+						Log.w(LCAT, "Sendbird onInitSucceed()");
+
 						KrollDict eventData = new KrollDict();
 						eventData.put("success",true);
-						fireEvent("sendbird:status", eventData);
+						//fireEvent("sendbird:status", eventData);
 
-						Intent intent = ChannelListActivity.newIntent(TiApplication.getInstance().getApplicationContext());
-						intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-						TiApplication.getInstance().getApplicationContext().startActivity(intent);
+						onComplete.callAsync(getKrollObject(), eventData);
                     }
                 };
             }
         }, TiApplication.getInstance().getApplicationContext());		
 	}
 
-	// // Properties
-	// @Kroll.getProperty
-	// public String getExampleProp()
-	// {
-	// 	Log.d(LCAT, "get example property");
-	// 	return "hello world";
-	// }
+	@Kroll.method
+	public void connectUser(KrollDict options)
+	{
+		Log.w(LCAT, "Sendbird connectUser()");
+		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
+		String connectUserId = options.containsKey("userId") ? (String) options.get("userId") : "";
+		String connectAccessToken = options.containsKey("authToken") ? (String) options.get("authToken") : "";
+
+		SendbirdChat.connect(connectUserId, connectAccessToken, (user, e) -> {
+			KrollDict eventData = new KrollDict();
+			if (e != null) {
+				eventData.put("success",false);
+				eventData.put("message", e.getLocalizedMessage());
+				Log.e(LCAT, e.getLocalizedMessage());
+			} else {
+				eventData.put("success",true);
+				eventData.put("message","The user is online and connected to the server");
+				Log.w(LCAT, "The user is online and connected to the server");
+
+			}
+
+			onComplete.callAsync(getKrollObject(), eventData);
+
+		});
+
+	}
+	
+	@Kroll.method
+	public void disconnectUser(KrollDict options)
+	{
+		Log.w(LCAT, "Sendbird disconnectUser()");
+		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
+
+		SendbirdUIKit.disconnect(new DisconnectHandler() {
+			@Override
+			public void onDisconnected() {
+				// The current user is disconnected from Sendbird server.
+				KrollDict eventData = new KrollDict();
+				eventData.put("success",true);
+				eventData.put("message","The current user is disconnected from Sendbird server");
+
+				onComplete.callAsync(getKrollObject(), eventData);
+			}
+		});
+	}
+
+	@Kroll.method
+	public void launchChat(KrollDict options)
+	{
+		Log.i(LCAT, "Sendbird launchChat()");
+
+		String groupChannelUrl = options.containsKey("groupChannelUrl") ? (String) options.get("groupChannelUrl") : "";
+		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
+
+		KrollDict eventData = new KrollDict();
+		try {
+			Intent intent = ChannelActivity.newIntent(TiApplication.getInstance().getApplicationContext(), groupChannelUrl);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			TiApplication.getInstance().getApplicationContext().startActivity(intent);
+
+			eventData.put("success",true);
+			eventData.put("message","Chat opened");
+			eventData.put("channelURL", groupChannelUrl);
+			fireEvent("app:sendbird_chat_opened", eventData);
+			onComplete.callAsync(getKrollObject(), eventData);
+		} catch (Exception exception) {
+
+			eventData.put("success",false);
+			eventData.put("message",exception.getLocalizedMessage());
 
 
-	// @Kroll.setProperty
-	// public void setExampleProp(String value) {
-	// 	Log.d(LCAT, "set example property: " + value);
-	// }
-
+			onComplete.callAsync(getKrollObject(), eventData);
+		}
+	}
 }
 
