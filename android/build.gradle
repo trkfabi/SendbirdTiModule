@@ -5,6 +5,5 @@ repositories {
 	maven { url "https://repo.sendbird.com/public/maven" }
 }
 dependencies {
-  	implementation 'com.sendbird.sdk:uikit:3.3.2'
-	implementation 'com.sendbird.sdk:sendbird-chat:4.5.0'
+	implementation 'com.github.trkfabi:sendbird-uikit-android:3.4.0.11'
 }

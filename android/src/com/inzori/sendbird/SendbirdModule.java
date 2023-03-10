@@ -19,28 +19,22 @@ import org.appcelerator.kroll.common.Log;
 import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
-import androidx.lifecycle.ViewModelProvider;
-
-import android.content.Context;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
+import android.widget.TextView;
 
-import com.sendbird.android.params.FileMessageCreateParams;
-import com.sendbird.android.params.UserMessageCreateParams;
-import com.sendbird.android.params.UserMessageUpdateParams;
 import com.sendbird.uikit.SendbirdUIKit;
-import com.sendbird.uikit.activities.MessageSearchActivity;
+import com.sendbird.uikit.activities.adapter.MessageListAdapter;
+import com.sendbird.uikit.activities.viewholder.MessageType;
+import com.sendbird.uikit.activities.viewholder.MessageViewHolder;
+import com.sendbird.uikit.activities.viewholder.MessageViewHolderFactory;
 import com.sendbird.uikit.adapter.SendbirdUIKitAdapter;
-import com.sendbird.uikit.activities.ChannelListActivity;
+import com.sendbird.uikit.databinding.SbViewAdminMessageBinding;
 import com.sendbird.uikit.activities.ChannelActivity;
-import com.sendbird.uikit.consts.StringSet;
 import com.sendbird.uikit.fragments.ChannelFragment;
-import com.sendbird.uikit.fragments.CreateChannelFragment;
 import com.sendbird.uikit.fragments.UIKitFragmentFactory;
 import com.sendbird.uikit.interfaces.UserInfo;
 import com.sendbird.android.SendbirdChat;
@@ -48,24 +42,22 @@ import com.sendbird.android.handler.InitResultHandler;
 import com.sendbird.android.handler.DisconnectHandler;
 import com.sendbird.android.exception.SendbirdException;
 import com.sendbird.android.channel.GroupChannel;
-import com.sendbird.uikit.modules.ChannelModule;
-import com.sendbird.uikit.modules.components.ChannelHeaderComponent;
-import com.sendbird.uikit.vm.ChannelViewModel;
-import androidx.lifecycle.ViewModel;
-import com.sendbird.android.params.MessageListParams;
+import com.sendbird.uikit.model.MessageListUIParams;
+import com.sendbird.android.channel.BaseChannel;
+import com.sendbird.android.message.BaseMessage;
 
-import java.util.Objects;
+import java.util.Map;
 
-
+	// Removes right settings icon
 class CustomFragmentFactory extends UIKitFragmentFactory {
 
 	// TODO : Override the methods that create the fragment you wish to customize.
 	private static final String LCAT = "SendbirdModule";
-
 	@Override
 	public ChannelFragment newChannelFragment(@NonNull String channelUrl, @NonNull Bundle args) {
 		// TODO : Return the customized `ChannelFragment` here.
 		// You can send data from activity to the custom fragment through `Bundle`.
+
 		final CustomChannelFragment fragment = new CustomChannelFragment();
 		return new ChannelFragment.Builder(channelUrl)
 				.setCustomFragment(fragment)
@@ -86,18 +78,11 @@ class CustomFragmentFactory extends UIKitFragmentFactory {
 @Kroll.module(name="Sendbird", id="com.inzori.sendbird")
 public class SendbirdModule extends KrollModule
 {
-
 	// Standard Debugging variables
 	private static final String LCAT = "SendbirdModule";
 	private String appId = "";
 	private String userId = "";
-//	private String userName = "";
-//	private String userAvatar = "";
 	private String accessToken = "";
-//	private String deviceToken = "";
-
-	// You can define constants with @Kroll.constant, for example:
-	// @Kroll.constant public static final String EXTERNAL_NAME = value;
 
 	public SendbirdModule()
 	{
@@ -120,8 +105,6 @@ public class SendbirdModule extends KrollModule
 
 		appId = options.containsKey("appId") ? (String) options.get("appId") : "";
 		userId = options.containsKey("userId") ? (String) options.get("userId") : "";
-//		userName = options.containsKey("userName") ? (String) options.get("userName") : "";
-//		userAvatar = options.containsKey("userAvatar") ? (String) options.get("userAvatar") : "";
 		KrollFunction onComplete = (KrollFunction) options.get("onComplete");
 
 		SendbirdUIKit.init(new SendbirdUIKitAdapter() {
@@ -218,11 +201,8 @@ public class SendbirdModule extends KrollModule
 				Log.w(LCAT, "The user is online and connected to the server");
 
 			}
-
 			onComplete.callAsync(getKrollObject(), eventData);
-
 		});
-
 	}
 	
 	@Kroll.method
@@ -238,7 +218,6 @@ public class SendbirdModule extends KrollModule
 				KrollDict eventData = new KrollDict();
 				eventData.put("success",true);
 				eventData.put("message","The current user is disconnected from Sendbird server");
-
 				onComplete.callAsync(getKrollObject(), eventData);
 			}
 		});
@@ -262,7 +241,6 @@ public class SendbirdModule extends KrollModule
 
 		KrollDict eventData = new KrollDict();
 		try {
-
 			Intent intent = ChannelActivity.newIntent(TiApplication.getInstance().getApplicationContext(), groupChannelUrl);
 			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 			TiApplication.getInstance().getApplicationContext().startActivity(intent);
@@ -273,11 +251,8 @@ public class SendbirdModule extends KrollModule
 			fireEvent("app:sendbird_chat_opened", eventData);
 			onComplete.callAsync(getKrollObject(), eventData);
 		} catch (Exception exception) {
-
 			eventData.put("success",false);
 			eventData.put("message",exception.getLocalizedMessage());
-
-
 			onComplete.callAsync(getKrollObject(), eventData);
 		}
 	}
